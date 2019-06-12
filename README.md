@@ -19,3 +19,4 @@ const signalProtocolStore = new OrbitDBSignalProtocolStore(docstore)
 using libsignal-protocol-javascript:
   - https://github.com/signalapp/libsignal-protocol-javascript/
   - https://stackoverflow.com/questions/44160427/working-example-for-signal-protocol-in-js
+  - https://www.npmjs.com/package/libsignal-protocol-nodejs
