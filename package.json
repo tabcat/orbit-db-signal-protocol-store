@@ -1,5 +1,5 @@
 {
-  "name": "orbit-db-signal-protocol-store",
+  "name": "@tabcat/orbit-db-signal-protocol-store",
   "version": "0.0.1",
   "description": "libsignal protocol store interface for orbit-db docstore",
   "main": "src/OrbitDBSignalProtocolStore.js",
