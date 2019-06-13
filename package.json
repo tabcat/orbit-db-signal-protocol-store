@@ -1,6 +1,10 @@
 {
   "name": "@tabcat/orbit-db-signal-protocol-store",
-  "version": "0.0.1",
+  "version": "0.0.2",
+	"repository": {
+      "type": "git",
+      "url": "https://github.com/tabcat/orbit-db-signal-protocol-store.git"
+  },
   "description": "libsignal protocol store interface for orbit-db docstore",
   "main": "src/OrbitDBSignalProtocolStore.js",
   "keywords": [
