@@ -12,6 +12,7 @@ create the signal protocol store:
 ```
 const docstore = await orbitdb.create('signal-protocol-store', 'docstore', { replicate:false })
 // recommend disabling replication on orbit docstore so secrets are not sent to peers
+
 const signalProtocolStore = new OrbitDBSignalProtocolStore(docstore)
 // signalProtocolStore can now be used in libsignal as the store
 ```
