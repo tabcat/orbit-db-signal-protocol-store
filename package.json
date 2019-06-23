@@ -1,6 +1,6 @@
 {
   "name": "@tabcat/orbit-db-signal-protocol-store",
-  "version": "0.0.2",
+  "version": "0.0.3",
 	"repository": {
       "type": "git",
       "url": "https://github.com/tabcat/orbit-db-signal-protocol-store.git"
