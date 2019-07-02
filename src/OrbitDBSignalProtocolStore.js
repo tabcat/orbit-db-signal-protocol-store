@@ -135,7 +135,6 @@ OrbitDBSignalProtocolStore.prototype = {
     return this.get('session' + identifier);
   },
   storeSession: function(identifier, record) {
-		console.log({record})
 		const sessionId = 'session' + identifier
 		// had to add the .then because record wasnt actually being added to store for some reason
 		return this.put(sessionId, record)
