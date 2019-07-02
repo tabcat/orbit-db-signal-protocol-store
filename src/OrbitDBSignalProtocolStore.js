@@ -1,6 +1,17 @@
 
 'use strict'
 var util = require('./helpers.js');
+var serializeKeyPair = (idKeys) => JSON.stringify(
+	{ pubKey:util.toString(idKeys.pubKey), privKey:util.toString(idKeys.privKey) }
+);
+var deserializeKeyPair = (keyPair) => Object.keys(JSON.parse(keyPair))
+	.reduce(
+		(obj, key) => ({
+			...obj,
+			[key]: util.toArrayBuffer(JSON.parse(keyPair)[key]),
+		}),
+		{}
+	);
 
 function OrbitDBSignalProtocolStore(orbitDocstore) {
   this.store = orbitDocstore;
@@ -13,15 +24,17 @@ OrbitDBSignalProtocolStore.prototype = {
   },
 
   getIdentityKeyPair: function() {
-    return Promise.resolve(this.get('identityKey'));
+    return this.get('identityKey')
+			.then((keyPair) => keyPair === undefined ? undefined : deserializeKeyPair(keyPair))
+			.catch((err) => {throw err});
   },
   getLocalRegistrationId: function() {
-    return Promise.resolve(this.get('registrationId'));
+    return this.get('registrationId');
   },
   put: function(key, value) {
     if (key === undefined || value === undefined || key === null || value === null)
       throw new Error("Tried to store undefined/null");
-    return Promise.resolve(this.store.put({ _id:key, value:value }));
+    return this.store.put({ _id:key, value:value });
   },
   get: function(key, defaultValue) {
     if (key === null || key === undefined)
@@ -36,32 +49,19 @@ OrbitDBSignalProtocolStore.prototype = {
   remove: function(key) {
     if (key === null || key === undefined)
       throw new Error("Tried to remove value for undefined/null key");
-		return Promise.resolve(this.get(key).then(function(val) {
+		return this.get(key).then(function(val) {
 			if (val) {
-				return Promise.resolve(this.store.del(key));
+				return this.store.del(key);
 			} else {
 				return Promise.resolve(true);
 			}
-		}.bind(this)));
+		}.bind(this));
   },
 	groupedRemove: function(docs) {
-    var reducedPromises = docs.reduce(function(accu, doc) {
-      return accu.then(function(promises) {
-        var promise = Promise.resolve(this.remove(doc._id))
-        return promise.then(function() {
-          return Promise.resolve(promises.concat([promise]))
-        })
-      }.bind(this)).catch(function(err) {
-        console.error(err)
-        return Promise.resolve(promises)
-      })
-    }.bind(this), Promise.resolve([]))
-    return Promise.resolve(
-      reducedPromises.then(function(promises) {
-        var completed = docs.length === promises.length
-        return Promise.resolve(completed)
-      })
-    )
+    if (docs === undefined) {
+			throw new Error('docs must be defined')
+		}
+    return Promise.all(docs.map((doc, index) => this.remove(doc._id)));
 	},
 
   isTrustedIdentity: function(identifier, identityKey, direction) {
@@ -72,15 +72,16 @@ OrbitDBSignalProtocolStore.prototype = {
       throw new Error("Expected identityKey to be an ArrayBuffer");
     }
     var trusted = this.get('identityKey' + identifier);
-    if (trusted === undefined) {
-      return Promise.resolve(true);
-    }
-    return Promise.resolve(util.toString(identityKey) === util.toString(trusted));
+		return trusted
+			.then((result) => result === undefined ? true : util.toString(identityKey) === trusted)
+			.catch((err) => {throw err})
   },
   loadIdentityKey: function(identifier) {
     if (identifier === null || identifier === undefined)
       throw new Error("Tried to get identity key for undefined/null key");
-    return Promise.resolve(this.get('identityKey' + identifier));
+    return this.get('identityKey' + identifier)
+			.then((result) => result === undefined ? undefined : util.toArrayBuffer(result))
+			.catch((err) => {throw err});
   },
   saveIdentity: function(identifier, identityKey) {
     if (identifier === null || identifier === undefined)
@@ -89,60 +90,69 @@ OrbitDBSignalProtocolStore.prototype = {
     var address = new libsignal.SignalProtocolAddress.fromString(identifier);
 
     var existing = this.get('identityKey' + address.getName());
-    this.put('identityKey' + address.getName(), identityKey)
+    this.put('identityKey' + address.getName(), util.toString(identityKey))
 
-    if (existing && util.toString(identityKey) !== util.toString(existing)) {
-      return Promise.resolve(true);
-    } else {
-      return Promise.resolve(false);
-    }
-
+		return existing
+			.then((result) => 
+				this.put('identityKey' + address.getName(), util.toString(identityKey))
+				.then(() => result && util.toString(identityKey) !== result 
+					? true
+					: false
+				)
+				.catch((err) => {throw err})
+			);
   },
 
   /* Returns a prekeypair object or undefined */
   loadPreKey: function(keyId) {
     var res = this.get('25519KeypreKey' + keyId);
-    if (res !== undefined) {
-      res = { pubKey: res.pubKey, privKey: res.privKey };
-    }
-    return Promise.resolve(res);
+		return res
+			.then((result) => result === undefined ? undefined : deserializeKeyPair(result))
+			.catch((err) => {throw err});
   },
   storePreKey: function(keyId, keyPair) {
-    return Promise.resolve(this.put('25519KeypreKey' + keyId, keyPair));
+    return this.put('25519KeypreKey' + keyId, serializeKeyPair(keyPair));
   },
   removePreKey: function(keyId) {
-    return Promise.resolve(this.remove('25519KeypreKey' + keyId));
+    return this.remove('25519KeypreKey' + keyId);
   },
 
   /* Returns a signed keypair object or undefined */
   loadSignedPreKey: function(keyId) {
     var res = this.get('25519KeysignedKey' + keyId);
-    if (res !== undefined) {
-      res = { pubKey: res.pubKey, privKey: res.privKey };
-    }
-    return Promise.resolve(res);
+		return res
+			.then((result) => result === undefined ? undefined : deserializeKeyPair(result))
+			.catch((err) => {throw err});
   },
   storeSignedPreKey: function(keyId, keyPair) {
-    return Promise.resolve(this.put('25519KeysignedKey' + keyId, keyPair));
+    return this.put('25519KeysignedKey' + keyId, serializeKeyPair(keyPair));
   },
   removeSignedPreKey: function(keyId) {
-    return Promise.resolve(this.remove('25519KeysignedKey' + keyId));
+    return this.remove('25519KeysignedKey' + keyId);
   },
 
   loadSession: function(identifier) {
-    return Promise.resolve(this.get('session' + identifier));
+    return this.get('session' + identifier);
   },
   storeSession: function(identifier, record) {
-    return Promise.resolve(this.put('session' + identifier, record));
+		console.log({record})
+		const sessionId = 'session' + identifier
+		// had to add the .then because record wasnt actually being added to store for some reason
+		return this.put(sessionId, record)
+			.then((hash) => this.store.query((doc) => doc._id === sessionId)[0] === undefined 
+				? this.put(sessionId, record) 
+				: hash
+			)
+			.catch((err) => {throw err});
   },
   removeSession: function(identifier) {
-    return Promise.resolve(this.remove('session' + identifier));
+    return this.remove('session' + identifier);
   },
   removeAllSessions: function(identifier) {
 		var sessions = this.store.query(function(doc) {
       return doc._id.startsWith('session' + identifier)
     });
-    return Promise.resolve(this.groupedRemove(sessions));
+    return this.groupedRemove(sessions);
   }
 };
 
